@@ -1,13 +1,18 @@
+import os
 import pickle
 import numpy as np
 from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 
-# Load trained linear regression model
-model = pickle.load(open('linear.pkl', 'rb'))
+# Safely resolve model path relative to app execution directory
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'linear.pkl')
+model = None
 
-# HTML template with modern layout and shadow effects inside app.py
+if os.path.exists(MODEL_PATH):
+    with open(MODEL_PATH, 'rb') as f:
+        model = pickle.load(f)
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -20,39 +25,48 @@ HTML_TEMPLATE = """
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: #f4f7f6;
+            background-color: #f3f4f6;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px 16px;
         }
 
         .container {
             background: #ffffff;
             border-radius: 12px;
-            padding: 30px 40px;
-            max-width: 600px;
+            padding: 32px;
+            max-width: 550px;
             width: 100%;
-            /* Shadow Effects */
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.05);
+            /* Drop Shadows */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
         }
 
         h1 {
+            color: #111827;
+            font-size: 22px;
+            font-weight: 700;
             text-align: center;
-            color: #333;
-            margin-bottom: 25px;
-            font-size: 26px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 24px;
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 16px;
         }
 
         .form-group {
@@ -60,123 +74,128 @@ HTML_TEMPLATE = """
             flex-direction: column;
         }
 
-        .form-group.full-width {
+        .full-width {
             grid-column: span 2;
         }
 
         label {
-            font-size: 14px;
-            color: #555;
-            margin-bottom: 6px;
+            font-size: 13px;
             font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
         }
 
         input[type="number"], select {
+            width: 100%;
             padding: 10px 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
             font-size: 14px;
-            transition: all 0.3s ease;
-            /* Box Shadow for Inputs */
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background-color: #ffffff;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         input[type="number"]:focus, select:focus {
-            border-color: #4A90E2;
-            outline: none;
-            box-shadow: 0 0 8px rgba(74, 144, 226, 0.3);
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
         }
 
         .submit-btn {
-            margin-top: 20px;
             grid-column: span 2;
+            margin-top: 8px;
             padding: 12px;
-            background-color: #4A90E2;
-            color: white;
+            background-color: #2563eb;
+            color: #ffffff;
             border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: bold;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+            transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
         }
 
         .submit-btn:hover {
-            background-color: #357ABD;
-            box-shadow: 0 6px 15px rgba(74, 144, 226, 0.5);
-            transform: translateY(-1px);
+            background-color: #1d4ed8;
+            box-shadow: 0 6px 12px -2px rgba(37, 99, 235, 0.4);
         }
 
-        .result-box {
-            margin-top: 25px;
-            padding: 15px;
-            background-color: #eaf4fe;
-            border-left: 5px solid #4A90E2;
-            border-radius: 4px;
+        .result-card {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
             text-align: center;
+            color: #1e40af;
             font-size: 18px;
-            color: #1c3d5a;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🏠 House Price Prediction</h1>
+    <h1>House Price Predictor</h1>
+    <p class="subtitle">Enter property details based on dataset specifications</p>
+
     <form action="/predict" method="post" class="form-grid">
         
         <div class="form-group">
             <label for="square_footage">Square Footage</label>
-            <input type="number" step="any" id="square_footage" name="square_footage" placeholder="e.g. 1500" required>
+            <input type="number" step="any" id="square_footage" name="square_footage" placeholder="e.g. 1360" required>
         </div>
 
         <div class="form-group">
             <label for="num_bedrooms">Bedrooms</label>
-            <input type="number" id="num_bedrooms" name="num_bedrooms" placeholder="e.g. 3" required>
+            <input type="number" id="num_bedrooms" name="num_bedrooms" placeholder="e.g. 2" required>
         </div>
 
         <div class="form-group">
             <label for="num_bathrooms">Bathrooms</label>
-            <input type="number" id="num_bathrooms" name="num_bathrooms" placeholder="e.g. 2" required>
+            <input type="number" id="num_bathrooms" name="num_bathrooms" placeholder="e.g. 1" required>
         </div>
 
         <div class="form-group">
             <label for="year_built">Year Built</label>
-            <input type="number" id="year_built" name="year_built" placeholder="e.g. 2005" required>
+            <input type="number" id="year_built" name="year_built" placeholder="e.g. 1981" required>
         </div>
 
         <div class="form-group">
             <label for="lot_size">Lot Size (Acres)</label>
-            <input type="number" step="any" id="lot_size" name="lot_size" placeholder="e.g. 1.2" required>
+            <input type="number" step="any" id="lot_size" name="lot_size" placeholder="e.g. 0.60" required>
         </div>
 
-        <!-- Categorical Column: Garage Size -->
+        <!-- Categorical Field: Garage Size -->
         <div class="form-group">
             <label for="garage_size">Garage Size</label>
             <select id="garage_size" name="garage_size" required>
-                <option value="" disabled selected>Select garage status</option>
-                <option value="0">No Garage (0)</option>
-                <option value="1">Has Garage (1)</option>
+                <option value="" disabled selected>Select option</option>
+                <option value="0">0 (No Garage)</option>
+                <option value="1">1 (1-Car/Attached)</option>
+                <option value="2">2 (2-Car Garage)</option>
+                <option value="3">3 (3-Car Garage)</option>
             </select>
         </div>
 
-        <!-- Categorical Column: Neighborhood Quality -->
+        <!-- Categorical Field: Neighborhood Quality -->
         <div class="form-group full-width">
-            <label for="neighborhood_quality">Neighborhood Quality Rating</label>
+            <label for="neighborhood_quality">Neighborhood Quality (1-10)</label>
             <select id="neighborhood_quality" name="neighborhood_quality" required>
-                <option value="" disabled selected>Select rating category</option>
-                <option value="1">1 - Poor</option>
+                <option value="" disabled selected>Select quality score</option>
+                <option value="1">1 - Very Low</option>
                 <option value="2">2 - Low</option>
-                <option value="3">3 - Fair</option>
-                <option value="4">4 - Below Average</option>
+                <option value="3">3 - Below Average</option>
+                <option value="4">4 - Fair</option>
                 <option value="5">5 - Average</option>
                 <option value="6">6 - Above Average</option>
                 <option value="7">7 - Good</option>
                 <option value="8">8 - Very Good</option>
                 <option value="9">9 - Excellent</option>
-                <option value="10">10 - Luxury</option>
+                <option value="10">10 - Premium</option>
             </select>
         </div>
 
@@ -184,8 +203,8 @@ HTML_TEMPLATE = """
     </form>
 
     {% if prediction_text %}
-        <div class="result-box">
-            <strong>{{ prediction_text }}</strong>
+        <div class="result-card">
+            {{ prediction_text }}
         </div>
     {% endif %}
 </div>
@@ -200,24 +219,28 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Extract numerical and categorical inputs from the form
-    sqft = float(request.form['square_footage'])
-    bedrooms = float(request.form['num_bedrooms'])
-    bathrooms = float(request.form['num_bathrooms'])
-    year = float(request.form['year_built'])
-    lot_size = float(request.form['lot_size'])
-    garage_size = float(request.form['garage_size'])
-    neighborhood_quality = float(request.form['neighborhood_quality'])
+    if model is None:
+        return render_template_string(HTML_TEMPLATE, prediction_text="Error: linear.pkl file not found.")
 
-    # Prepare features array for prediction matching training dataset features order
-    features = np.array([[sqft, bedrooms, bathrooms, year, lot_size, garage_size, neighborhood_quality]])
-    
-    # Predict price using linear regression model
-    prediction = model.predict(features)[0]
-    
-    result_text = f"Estimated House Price: ${prediction:,.2f}"
-    
-    return render_template_string(HTML_TEMPLATE, prediction_text=result_text)
+    try:
+        # Extract features matching the exact feature order[cite: 1]
+        sqft = float(request.form['square_footage'])
+        bedrooms = float(request.form['num_bedrooms'])
+        bathrooms = float(request.form['num_bathrooms'])
+        year = float(request.form['year_built'])
+        lot_size = float(request.form['lot_size'])
+        garage_size = float(request.form['garage_size'])
+        neighborhood_quality = float(request.form['neighborhood_quality'])
+
+        # Arrange array according to X = df[['Square_Footage','Num_Bedrooms','Num_Bathrooms','Year_Built','Lot_Size','Garage_Size','Neighborhood_Quality']][cite: 1]
+        features = np.array([[sqft, bedrooms, bathrooms, year, lot_size, garage_size, neighborhood_quality]])
+        prediction = model.predict(features)[0]
+
+        result = f"Estimated Price: ${prediction:,.2f}"
+    except Exception as e:
+        result = f"Error during evaluation: {str(e)}"
+
+    return render_template_string(HTML_TEMPLATE, prediction_text=result)
 
 if __name__ == '__main__':
     app.run(debug=True)
